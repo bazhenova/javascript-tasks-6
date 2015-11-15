@@ -1,16 +1,17 @@
 'use strict';
+var daysOfWeek = ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС'];
 
 module.exports = function () {
     return {
         // Здесь как-то хранится дата ;)
-        theDate: {},
+        _date: {},
 
         get date() {
-            return getTimeInMinutes(this.theDate);
+            return getTimeInMinutes(this._date);
         },
 
         set date(newDate) {
-            this.theDate = parseDate(newDate);
+            this._date = parseDate(newDate);
         },
 
         // А здесь часовой пояс
@@ -18,22 +19,15 @@ module.exports = function () {
 
         // Выводит дату в переданном формате
         format: function (pattern) {
-            var hours = this.theDate.hours + this.timezone;
-            var day = this.theDate.day;
-            if (hours < 0) {
-                hours += 24;
-                day -= 1;
-            }
-            if (hours >= 24) {
-                hours -= 24;
-                day += 1;
-            }
+            var hours = this._date.hours + this.timezone;
+            var day = this._date.day;
+            var update = getCorrectHoursAndDay(hours, day);
             var newDate = {
-                day: day,
-                hours: hours,
-                minutes: this.theDate.minutes
+                days: update.day,
+                hours: update.hours,
+                minutes: this._date.minutes
             };
-            var strDate = getStrDate(newDate);
+            var strDate = this.getStrDate(newDate);
             pattern = pattern.replace(/%DD/g, strDate.day);
             pattern = pattern.replace(/%HH/g, strDate.hours);
             pattern = pattern.replace(/%MM/g, strDate.minutes);
@@ -47,27 +41,38 @@ module.exports = function () {
             var momentTime = moment.date;
             var diff = currentTime - momentTime;
             if (diff > 0) {
-                var time = takeTime(diff);
-                return createStrTime(time);
-            } else {
-                return 'Ограбление уже идет!';
+                var time = this.takeTime(diff);
+                return getTimeBeforeString(time);
             }
+            return 'Ограбление уже идет!';
+        },
+
+        getStrDate: function (date) {
+            var hours = ((date.hours < 10) ? '0' : '') + date.hours;
+            var minutes = ((date.minutes < 10) ? '0' : '') + date.minutes;
+            var day = daysOfWeek[date.days];
+            return {
+                day: day,
+                hours: hours,
+                minutes: minutes
+            };
+        },
+
+        takeTime: function (minutes) {
+            var days = Math.floor(minutes / (60 * 24));
+            minutes -= 60 * 24 * days;
+            var hours = Math.floor(minutes / 60);
+            minutes -= 60 * hours;
+            return {
+                days: days,
+                hours: hours,
+                minutes: minutes
+            };
         }
     };
 };
 
-function parseDate(date) {
-    var daysOfWeek = ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС'];
-    var dayName = date.slice(0, 2);
-    var day = -1;
-    for (var i = 0; i < daysOfWeek.length; i++) {
-        if (dayName === daysOfWeek[i]) {
-            day = i;
-            break;
-        }
-    }
-    var zone = parseInt(date.slice(8));
-    var hours = parseInt(date.slice(3, 5)) - zone; // Перевели в +0
+function getCorrectHoursAndDay(hours, day) {
     if (hours < 0) {
         hours += 24;
         day -= 1;
@@ -77,55 +82,60 @@ function parseDate(date) {
         day += 1;
     }
     day = (day < 0) ? 6 : day;
-    var minutes = parseInt(date.slice(6, 8));
     return {
         day: day,
-        hours: hours,
+        hours: hours
+    };
+}
+
+function parseDate(date) {
+    var dayName = date.slice(0, 2);
+    var day = daysOfWeek.indexOf(dayName);
+    if (day === -1) {
+        throw new Error('Проверьте корректность дня недели');
+    }
+    var zone = parseInt(date.slice(8), 10);
+    var hours = getUTChours(date, zone);
+    var update = getCorrectHoursAndDay(hours, day);
+    var minutes = parseInt(date.slice(6, 8), 10);
+    return {
+        day: update.day,
+        hours: update.hours,
         minutes: minutes
     };
 }
 
-function getStrDate(date) {
-    var hours = (date.hours < 10) ? '0' + date.hours : date.hours;
-    var minutes = (date.minutes < 10) ? '0' + date.minutes : date.minutes;
-    var daysOfWeek = ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС'];
-    var day = daysOfWeek[date.day];
-    return {
-        day: day,
-        hours: hours,
-        minutes: minutes
-    };
+function getUTChours(date, zone) {
+    return parseInt(date.slice(3, 5), 10) - zone;
 }
 
 function getTimeInMinutes(date) {
     return (date.day * 24 + date.hours) * 60 + date.minutes;
 }
 
-function takeTime(minutes) {
-    var days = Math.floor(minutes / (60 * 24));
-    minutes -= 60 * 24 * days;
-    var hours = Math.floor(minutes / 60);
-    minutes -= 60 * hours;
-    return {
-        days: days,
-        hours: hours,
-        minutes: minutes
-    };
-}
-
-function createStrTime(time) {
+function getTimeBeforeString(time) {
     var str = 'До ограбления ';
     var rest = ['остался', 'осталось', 'осталось'];
     var minutes = ['минута', 'минут', 'минуты'];
     var hours = ['час', 'часов', 'часа'];
     var days = ['день', 'дней', 'дня'];
-    var index = getCorrectIndex(time.days);
-    str += rest[index] + ' ';
-    str += time.days + ' ' + days[index] + ' ';
-    index = getCorrectIndex(time.hours);
-    str += time.hours + ' ' + hours[index] + ' ';
-    index = getCorrectIndex(time.minutes);
-    str += time.minutes + ' ' + minutes[index];
+    var strTime = '';
+    var restIndex = -1;
+    var index = -1;
+    var keys = ['days', 'hours', 'minutes'];
+    var textArrays = [days, hours, minutes];
+    for (var i = 0; i < keys.length; i++) {
+        if (time[keys[i]] !== 0) {
+            index = getCorrectIndex(time[keys[i]]);
+            strTime += time[keys[i]] + ' ' + textArrays[i][index] + ' ';
+            restIndex = (restIndex === -1) ? index : restIndex;
+        }
+    }
+    if (restIndex === -1) {
+        restIndex = 1;
+        strTime += '0' + minutes[1];
+    }
+    str += rest[restIndex] + ' ' + strTime;
     return str;
 }
 
