@@ -28,10 +28,10 @@ module.exports = function () {
                 minutes: this._date.minutes
             };
             var strDate = this.getStrDate(newDate);
-            pattern = pattern.replace(/%DD/g, strDate.day);
-            pattern = pattern.replace(/%HH/g, strDate.hours);
-            pattern = pattern.replace(/%MM/g, strDate.minutes);
-            return pattern;
+            return pattern
+                .replace('%DD', strDate.day)
+                .replace('%HH', strDate.hours)
+                .replace('%MM', strDate.minutes);
         },
 
         // Возвращает кол-во времени между текущей датой и переданной `moment`
@@ -48,13 +48,10 @@ module.exports = function () {
         },
 
         getStrDate: function (date) {
-            var hours = ((date.hours < 10) ? '0' : '') + date.hours;
-            var minutes = ((date.minutes < 10) ? '0' : '') + date.minutes;
-            var day = daysOfWeek[date.days];
             return {
-                day: day,
-                hours: hours,
-                minutes: minutes
+                day: daysOfWeek[date.days],
+                hours: addZeroToTime(date.hours),
+                minutes: addZeroToTime(date.minutes)
             };
         },
 
@@ -71,6 +68,10 @@ module.exports = function () {
         }
     };
 };
+
+function addZeroToTime(time) {
+    return ((time < 10) ? '0' : '') + time;
+}
 
 function getCorrectHoursAndDay(hours, day) {
     if (hours < 0) {
@@ -114,7 +115,6 @@ function getTimeInMinutes(date) {
 }
 
 function getTimeBeforeString(time) {
-    var str = 'До ограбления ';
     var rest = ['остался', 'осталось', 'осталось'];
     var minutes = ['минута', 'минут', 'минуты'];
     var hours = ['час', 'часов', 'часа'];
@@ -135,8 +135,7 @@ function getTimeBeforeString(time) {
         restIndex = 1;
         strTime += '0' + minutes[1];
     }
-    str += rest[restIndex] + ' ' + strTime;
-    return str;
+    return 'До ограбления ' + rest[restIndex] + ' ' + strTime;
 }
 
 function getCorrectIndex(time) {

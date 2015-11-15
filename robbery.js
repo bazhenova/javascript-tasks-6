@@ -43,18 +43,10 @@ module.exports.getStatus = function (moment, robberyMoment) {
 
 function getPeopleTime(data) {
     var peopleTime = [];
-    var currentMoment = moment();
     var people = Object.keys(data);
     for (var i = 0; i < people.length; i++) {
         for (var j = 0; j < data[people[i]].length; j++) {
-            currentMoment.date = data[people[i]][j].from;
-            var start = currentMoment.date;
-            currentMoment.date = data[people[i]][j].to;
-            var finish = currentMoment.date;
-            peopleTime.push({
-                from: start,
-                to: finish
-            });
+            peopleTime.push(getTimes(data[people[i]][j].from, data[people[i]][j].to));
         }
     }
     return peopleTime;
@@ -97,15 +89,19 @@ function getBankTimes(workingHours) {
     var currentMoment = moment();
     for (var i = 0; i < daysOfWeek.length; i++) {
         var start = daysOfWeek[i] + ' ' + workingHours.from;
-        currentMoment.date = start;
-        start = currentMoment.date;
         var finish = daysOfWeek[i] + ' ' + workingHours.to;
-        currentMoment.date = finish;
-        finish = currentMoment.date;
-        times.push({
-            from: start,
-            to: finish
-        });
+        times.push(getTimes(start, finish));
     }
     return times;
+}
+
+function getTimes(start, finish) {
+    var startMoment = moment();
+    var endMoment = moment();
+    startMoment.date = start;
+    endMoment.date = finish;
+    return {
+        from: startMoment.date,
+        to: endMoment.date
+    };
 }
